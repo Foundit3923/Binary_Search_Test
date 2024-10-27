@@ -99,30 +99,34 @@ static unsigned char hexdigit2int(unsigned char xd)
   return 0;
 }
 
-unsigned char* decode_hex(unsigned char* st){
+unsigned char* decode_hex(unsigned char* st, uint8_t* wildcard_index[100]){
   const char *src = st; 
   int st_len = strlen(st);
   int text_len = st_len;
   unsigned char* text = (unsigned char*) malloc(sizeof(unsigned char) * text_len);
   unsigned char* dst = text;
   bool first_wild_in_sequence = true;
+  int count = 0;
+  int char_count = 0;
 
   while (*src != '\0')
   {
     if(*src == '?'){
       *src++;
       *src++;
-      if(first_wild_in_sequence){
-        *dst++ = 0x2A;
-      }      
-      first_wild_in_sequence = false;
+      *dst = 0x2A;
+      wildcard_index[count] = &dst[0];
+      dst++;
+      count++;
     }
     else{
       const unsigned char high = hexdigit2int(*src++);
       const unsigned char low  = hexdigit2int(*src++);
-      *dst++ = (high << 4) | low;
+      *dst = (high << 4) | low;
+      dst++;
       first_wild_in_sequence = true;
     }
+    char_count++;
   }
   *dst = '\0';
   return text;
@@ -132,14 +136,20 @@ int search_s_p (unsigned char* query_array,
                 int query_len,
                 unsigned char* text,
                 int text_len,
-                uint8_t* R[12]) {
+                uint8_t* R[20]) {
 
   //Setup
   int result = 0;
   int byte_offset = 0;
   int count = 0;
+  int wildcard_count = 0;
+  int match_count = 0;
+
+  uint8_t* wildcard_index[100];
+
   query_len = strlen(query_array)/2;
-  query_array = decode_hex(query_array);
+  query_array = decode_hex(query_array, wildcard_index);
+  int test_len = strlen(query_array);
   int capacity = text_len/query_len;
   int first_offset = 0;
 
@@ -149,7 +159,7 @@ int search_s_p (unsigned char* query_array,
   uint8_t* match_start;
   uint8_t* segment_start;
 
-  uint8_t* results[12];
+  uint8_t* results[20];
 
   union Window file_window;
   file_window.c = &text[0];
@@ -168,16 +178,28 @@ int search_s_p (unsigned char* query_array,
 
   //While the address of the first char of file_window.c is not the address of the last char of the text. 
   while(!(&*file_window.c > &text[text_len-1])) {
-    if(*byte_ptr == '*') {
-      //reset query_matches, flag not in the first segment, flag currently in wild search, store the beginning of this segment
-      if(*(++byte_ptr) == '*'){
-        goto search;
-      }
-      goto wild;
+
+    if((byte_offset <= 0x23411F4) && (byte_offset >= 0x23411EC)){
+      printf("in range");
     }
-    //Check if *byte_ptr matches any chars in *file_window  
-    //reduce any found matches to a single bit occupying the lsb position of a byte
-    //compare query_matches with reduce to only keep desired matches
+
+    if(byte_offset == 0x234122F){}
+    if((byte_offset <= 0x2341233) && (byte_offset >= 0x234122B)){
+      printf("at end");
+    }
+
+    while(&byte_ptr[0] == wildcard_index[wildcard_count]){
+      byte_ptr++;
+      file_window.c++;
+      wildcard_count++;
+      if(&byte_ptr[0] != last_byte){
+        count(query_matches);
+        *(R + count) = match_start + first_offset;     
+        count++; 
+        goto jump;    
+      }
+    }
+
     value = ~xnor(*file_window.i, query_matches, *byte_ptr);
     value2 = boolean_reduce(value,4);
     value3 = boolean_reduce(value2,2);
@@ -186,7 +208,7 @@ int search_s_p (unsigned char* query_array,
     if((bool)(query_matches = reduced_value & query_matches)) {
       if (&byte_ptr[0] == last_byte) { //Pattern matched, no longer wild, count matches, store location, increase array position, now in first segment
         count(query_matches);
-        *(results + count) = match_start + first_offset;     
+        *(R + count) = match_start + first_offset;     
         count++; 
         goto jump;      
       } else {
@@ -210,58 +232,10 @@ int search_s_p (unsigned char* query_array,
   byte_offset += 8;
   file_window.c = &text[byte_offset];
   query_matches = LAST_BITS_ON;  
+  wildcard_count = 0;
   goto search;  
-
-  wild:
-  query_matches = LAST_BITS_ON;
-  first_segment = false;
-  wild = true;
-  segment_start = &byte_ptr[0];
-  //While the address of the first char of file_window.c is not the address of the last char of the text. 
-  while(!(&*file_window.c > &text[text_len-1])) {
-    if(*byte_ptr == '*') {
-      //reset query_matches, flag not in the first segment, flag currently in wild search, store the beginning of this segment
-      if(*(++byte_ptr) == '*'){
-        goto search;
-      }
-      
-      goto wild;
-    }
-    //Check if *byte_ptr matches any chars in *file_window  
-    //reduce any found matches to a single bit occupying the lsb position of a byte
-    //compare query_matches with reduce to only keep desired matches
-    value = ~xnor(*file_window.i, query_matches, *byte_ptr);
-    value2 = boolean_reduce(value,4);
-    value3 = boolean_reduce(value2,2);
-    reduced_value = boolean_reduce(value3,1);
-
-    if((bool)(query_matches = reduced_value & query_matches)) {
-      if (&byte_ptr[0] == last_byte) { //Pattern matched, no longer wild, count matches, store location, increase array position, now in first segment
-        wild = false;
-        first_segment = true;
-        count(query_matches);
-        *(results + count) = match_start + first_offset;     
-        count++; 
-        goto jump;        
-      } else {
-        //Character match found: move to next char in text and query             
-        byte_ptr++;
-        file_window.c++;
-      }
-    } else {
-      //No match found in window: move window and reset
-      goto wild_jump;
-    }
-  }
-  goto end;
-  wild_jump:
-  byte_ptr = segment_start;
-  byte_offset += 8;
-  file_window.c = &text[byte_offset];
-  query_matches = LAST_BITS_ON;  
-  goto wild;  
   end:
-  R = results;
+  //R = results;
   //Return False if the text is searched and nothing is found.
   return count;
 }
