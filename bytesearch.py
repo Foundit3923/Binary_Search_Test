@@ -6,7 +6,8 @@ import os.path as op
 from ctypes import *
 
 def main():
-  so_file = "E:\\Documents\\Code\\Python\\byte_search_mixed\\smart_s_p.so"
+  dir_path = os.path.dirname(os.path.realpath(__file__))
+  so_file = op.join(dir_path, "smart_s_p.so")
   packedfilter = CDLL(so_file)
   P = POINTER(c_ubyte)
 
@@ -17,8 +18,7 @@ def main():
   b_string = hex_string.encode('utf-8')
   P = (c_ubyte * patt_len).from_buffer_copy(bytearray(b_string))
   filename = 'NMS.exe'
-  cwd = 'E:\\Documents\\Code\\Python\\byte_search'
-  file_path = op.join(cwd,filename)
+  file_path = op.join(dir_path,filename)
   file_stream = open(file_path, 'rb')
   file = file_stream.read()
   file_len = os.path.getsize(file_path)
@@ -28,3 +28,5 @@ def main():
   print(file_len, patt_len)
   result = packedfilter.search_s_p(P, patt_len, T, file_len)
   print(result)
+
+main()
