@@ -52,7 +52,7 @@ int search(unsigned char *x, int m, unsigned char *y, int n) {
 }
 
 int main(){
-  int result = 0;
+  int result_occ = 0;
   int test_result = 0;
   PLARGE_INTEGER T_size = (PLARGE_INTEGER) malloc(sizeof(PLARGE_INTEGER));
   char* text_path = "E:\\Documents\\Code\\Python\\byte_search\\NMS.bin";
@@ -74,8 +74,8 @@ int main(){
   
   fread(T, sizeof(unsigned char), st_size, Text);
   test_result = search(P, strlen(P), T, (int)st_size);
-  result = search_s_p(P, strlen(P), T, (int)st_size, results);
-  printf("Result: %d", result);
+  result_occ = search_s_p(P, strlen(P), T, (int)st_size, results);
+  printf("Result: %d", result_occ);
 
   return result;
 }
