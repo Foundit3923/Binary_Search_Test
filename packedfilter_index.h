@@ -140,7 +140,7 @@ void quick_pass (unsigned char* query_array,
             int query_len,
             unsigned char* text,
             int text_len,
-            int** hex_index[256]) {
+            int** hex_index) {
 
     //Setup
     int hex_idx_size = 0;
@@ -218,13 +218,14 @@ void quick_pass (unsigned char* query_array,
         } */
         //index_buf[hex_idx_used] = (int*)malloc(buf[0] * sizeof(int));
         index_buf[i] = (int*)malloc(sizeof(int)* buf[0]);
-        memcpy(index_buf[hex_idx_used],buf, sizeof(buf));
+        hex_index[i] = (int*)malloc(sizeof(int)* buf[0]);
+        memcpy(index_buf[i],buf, sizeof(buf));
         //index_buf[hex_idx_used] = &buf[0];
 /*         int** visual = hex_index;
         int* visual2 = visual[hex_idx_used];
         int visual3 = index_buf[hex_idx_used];
         int visual4 = hex_index[hex_idx_used][0]; */
-        printf("Hex val: %d indexed | %d\n", *char_ptr, *index_buf[hex_idx_used]);
+        //printf("Hex val: %d indexed | %d\n", *char_ptr, *index_buf[i]);
 /*         if(hex_idx_used>0){
             int* test = index_buf[hex_idx_used-1];
             printf("Last Hex val: %c indexed | %d\n", query_array[i-1] , *test);
@@ -245,6 +246,5 @@ void quick_pass (unsigned char* query_array,
     //*hex_index = (int**)malloc(sizeof(index_buf));
     //memcpy(&hex_index, &index_buf, sizeof(index_buf));
     //Return False if the text is searched and nothing is found.
-    //return hex_index;
-    return &index_buf;
+    memcpy(hex_index,index_buf,sizeof(index_buf));
 }

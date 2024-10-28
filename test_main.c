@@ -141,7 +141,7 @@ int main(){
   unsigned char* all_hex = generate_all_hex();
   start = startTimer();
   //result_occ = search_s_p(P, strlen(P), T, (int)st_size, wildcard_index);
-  quick_pass(all_hex, strlen(all_hex), T, (int)st_size, &hex_index);
+  quick_pass(all_hex, strlen(all_hex), T, (int)st_size, hex_index);
   final_time = endTimer(start);
   printf("Result: %d | %f\n", result_occ, final_time);
   int test = 0;
