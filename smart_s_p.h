@@ -133,12 +133,6 @@ unsigned char* decode_hex(unsigned char* st, uint8_t* wildcard_index[100]){
   return text;
 }
 
-/* int search_s_p (unsigned char* query_array,
-                int query_len,
-                unsigned char* text,
-                int text_len,
-                uint8_t* R[20]) { */
-
 int search_s_p (unsigned char* query_array,
                 int query_len,
                 unsigned char* text,
