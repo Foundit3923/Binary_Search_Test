@@ -11,6 +11,7 @@
 #include <inttypes.h>
 #include <math.h>
 #include <ctype.h>
+#include "stable_packedfilter.h"
 
 
 #define LAST_BITS_ON 0x101010101010101UL
@@ -21,45 +22,15 @@
 //Compares a character (c) to every character in (t). Results in a fully set byte when there is a match. Fully set byte is at match location.
 #define xnor(t,q,c) t ^ q * (c)// & (t ^ LAST_BITS_ON * (c))
 
-//Reduces fully set bytes to a byte with a 1 in the LSB position, non fully set bytes are reudced to 0
-#define reduce(v) (((~v - LAST_BITS_ON) ^ ~v) & SIGNIFICANT_BITS_ON) >> 7 //Original Method
-//#define reduce(t,q,c) (~(xnor(t,q,c) + LAST_BITS_ON) / 128) & LAST_BITS_ON
-
-//Counts the number of set bits in reduced integer
-#define bitcount(q) (q + q/255) & 255
-
-//Keeps track of found matches
-#define count(v) result += bitcount(v)
-
 //Compares and reduces the comparison of a character (c) to every character in (t). Results in a fully set byte reduced to a byte with the LSB position on. Non-fully set bytes are 0
-//(((LAST_BITS_NOT_ON - x) ^ x) >> 7) & LAST_BITS_ON
-//#define reduce(x) (((LAST_BITS_NOT_ON - x) ^ x) >> 7) & (((x - LAST_BITS_ON) ^ x) & SIGNIFICANT_BITS_ON) >> 7 
-//#define reduce_xnor(t,q,c) (((LAST_BITS_NOT_ON - ~((t ^ q * (c)) << 1)) ) >> 7) & LAST_BITS_ON
-//#define reduce_xnor(x) (((LAST_BITS_NOT_ON - ((LAST_BITS_NOT_ON - x) - x)) ) >> 7) & LAST_BITS_ON
-//#define reduce_xnor(t,q,c) (~((q * (c)) - t) >> 7) & LAST_BITS_ON
 #define boolean_reduce(x,n) (x>>n)&x 
 
-//Unused
-#define distance(x) ffsll(x >> 1) / 8
-
-union Window {
+union B_window {
     uint64_t* i;
     uint8_t* c;
-}Window;
+}B_window;
 
-union Query {
-    uint64_t* i;
-    uint8_t* c;
-    uint8_t * b;
-};
-
-union Test {
-    char* c;
-    //char l[8];
-    uint64_t i;
-};
-
-int getBitOffset(uint64_t matches){
+/* int getBitOffset(uint64_t matches){
   int err = -1;
   if(matches & 0xFFFFFFFF00000000UL){
     switch(matches>>32) {
@@ -78,7 +49,7 @@ int getBitOffset(uint64_t matches){
     }
   }
   return err;
-}
+} */
 
 static unsigned char hexdigit2int(unsigned char xd)
 {
@@ -100,68 +71,72 @@ static unsigned char hexdigit2int(unsigned char xd)
   return 0;
 }
 
-unsigned char* decode_hex(unsigned char* st, uint8_t* wildcard_index[100]){
+/* unsigned char* decode_hex(unsigned char* st, uint8_t* wildcard_index[100]){
   const char *src = st; 
   int st_len = strlen(st);
   int text_len = st_len;
   unsigned char* text = (unsigned char*) malloc(sizeof(unsigned char) * text_len);
   unsigned char* dst = text;
-  bool first_wild_in_sequence = true;
+  bool wildcard_sequence_start = false;
+  int wildcard_sequence_count = 0;
+  int wildcard_count = 0;
   int count = 0;
   int char_count = 0;
 
   while (*src != '\0')
   {
-    if(*src == '?'){
+    if(*src == '?'){      
+      wildcard_count++;
       *src++;
       *src++;
-      *dst = 0x2A;
-      wildcard_index[count] = &dst[0];
-      dst++;
-      count++;
+      *dst = wildcard_count;
+      wildcard_index[wildcard_sequence_count] = &dst[0];
+      wildcard_sequence_start = true;
     }
     else{
+      if(wildcard_sequence_start){
+        wildcard_sequence_start = false;
+        wildcard_sequence_count++;
+        dst++;
+      }
       const unsigned char high = hexdigit2int(*src++);
       const unsigned char low  = hexdigit2int(*src++);
       *dst = (high << 4) | low;
       dst++;
-      first_wild_in_sequence = true;
     }
     char_count++;
   }
   *dst = '\0';
   return text;
-}
+} */
+
+/* uint64_t boolean_reduce(uint64_t x, int n){
+  return(x>>n)&x;
+}  */
 
 int search_s_p (unsigned char* query_array,
                 int query_len,
                 unsigned char* text,
-                int text_len) {
+                int text_len,
+                uint8_t* wildcard_index[100]) {
 
   //Setup
-  int result = 0;
   int byte_offset = 0;
   int count = 0;
   int wildcard_count = 0;
-  int match_count = 0;
-
-  uint8_t* wildcard_index[100];
-
-  query_len = strlen(query_array)/2;
-  query_array = decode_hex(query_array, wildcard_index);
-  int test_len = strlen(query_array);
-  int capacity = text_len/query_len;
   int first_offset = 0;
+  
 
   uint8_t* byte_ptr = &query_array[0];
   uint8_t* last_byte = &query_array[query_len-1];
   uint8_t* first_byte = &query_array[0];
   uint8_t* match_start;
-  uint8_t* segment_start;
+  uint8_t* jump = wildcard_index[wildcard_count];
+  //uint8_t* results[20];
 
-  uint8_t* results[20];
-
-  union Window file_window;
+  int* locations = quick_pass(byte_ptr, 1, text, text_len);
+  
+  union B_window file_window;
   file_window.c = &text[0];
 
   uint64_t query_matches = LAST_BITS_ON;
@@ -170,25 +145,21 @@ int search_s_p (unsigned char* query_array,
   uint64_t value3 = 0;
   uint64_t reduced_value = 0;
 
-  bool wild = false;
-  bool first_segment = true;
-
-  //While the address of the first char of file_window.c is not the address of the last char of the text. 
+  
   while(!(&*file_window.c > &text[text_len-1])) {
 
-    if(&byte_ptr[0] == wildcard_index[wildcard_count]){
-      byte_ptr++;
-      file_window.c++;
-      wildcard_count++;
+    if(&byte_ptr[0] == jump){
+      byte_ptr+=(int)*jump;
+      file_window.c+=(int)*jump;
+      jump = wildcard_index[++wildcard_count];
       if(&byte_ptr[0] != last_byte){
-        count(query_matches);
-        *(R + count) = match_start + first_offset;     
-        count++; 
-        match_start = NULL;
+        //count(query_matches);
+        //*(R + count) = match_start + first_offset;
+        count++;
         byte_ptr = first_byte;
         byte_offset += 8;
         file_window.c = &text[byte_offset];
-        query_matches = LAST_BITS_ON;  
+        query_matches = LAST_BITS_ON;
         wildcard_count = 0;
       }
     }
@@ -197,30 +168,29 @@ int search_s_p (unsigned char* query_array,
       value2 = boolean_reduce(value,4);
       value3 = boolean_reduce(value2,2);
       reduced_value = boolean_reduce(value3,1);
+      query_matches = reduced_value & query_matches;
 
-      if((bool)(query_matches = reduced_value & query_matches)) {
-        if (&byte_ptr[0] == last_byte) { //Pattern matched, no longer wild, count matches, store location, increase array position, now in first segment
-          count(query_matches);
-          *(R + count) = match_start + first_offset;     
-          count++; 
-          match_start = NULL;
+      if((bool)(query_matches)) {
+        if (&byte_ptr[0] == last_byte) {
+          //count(query_matches);
+          //*(R + count) = match_start + getBitOffset(first_offset);
+          count++;
           byte_ptr = first_byte;
-          byte_offset += 8;
+          byte_offset += query_len;
           file_window.c = &text[byte_offset];
-          query_matches = LAST_BITS_ON;  
+          query_matches = LAST_BITS_ON;
           wildcard_count = 0;
         } else {
           //Character match found: move to next char in text and query
-          if(match_start == NULL){
-            match_start = file_window.c; //34
-            first_offset = getBitOffset(query_matches);
-          }                
+          if(&byte_ptr[0] == first_byte){
+            match_start = file_window.c;
+            //first_offset = query_matches;
+          }
           byte_ptr++;
           file_window.c++;
         }
       } else {
         //No match found in window: move window and reset
-        match_start = NULL;
         byte_ptr = first_byte;
         byte_offset += 8;
         file_window.c = &text[byte_offset];
@@ -230,7 +200,6 @@ int search_s_p (unsigned char* query_array,
     }
   }
   //R = results;
-  //Return False if the text is searched and nothing is found.
   return count;
 }
 

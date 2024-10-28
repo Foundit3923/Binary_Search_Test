@@ -2,6 +2,7 @@
 #include <fileapi.h>
 #include <io.h>
 #include "smart_s_p.h"
+#include <time.h>
 
 int remove_spaces(char* s) {
     char* d = s;
@@ -18,21 +19,15 @@ int remove_spaces(char* s) {
 }
 
 
-/* char* remove_spaces (const char* str_untrimmed)
-{
-  char* str_trimmed = (char*) str_trimmed;
+clock_t startTimer(){
+  double start, end, cpu_time_used;
+  return clock();
+}
 
-  while (*str_untrimmed != '\0')
-  {
-    if(!isspace(*str_untrimmed))
-    {
-      *str_trimmed = *str_untrimmed;
-      str_trimmed++;
-    }
-    str_untrimmed++;
-  }
-  *str_trimmed = '\0';
-} */
+double endTimer(clock_t startTime){
+  clock_t endTime = clock();
+  return ((double) (endTime - startTime)) / CLOCKS_PER_SEC;
+}
 
 void getFile(FILE* f, char* path){
   f = fopen(path, "rb");
@@ -49,6 +44,45 @@ int search(unsigned char *x, int m, unsigned char *y, int n) {
          count++;
    }
    return count;
+}
+
+unsigned char* decode_hex(unsigned char* st, uint8_t* wildcard_index[100]){
+  const char *src = st; 
+  int st_len = strlen(st);
+  int text_len = st_len;
+  unsigned char* text = (unsigned char*) malloc(sizeof(unsigned char) * text_len);
+  unsigned char* dst = text;
+  bool wildcard_sequence_start = false;
+  int wildcard_sequence_count = 0;
+  int wildcard_count = 0;
+  int count = 0;
+  int char_count = 0;
+
+  while (*src != '\0')
+  {
+    if(*src == '?'){      
+      wildcard_count++;
+      *src++;
+      *src++;
+      *dst = wildcard_count;
+      wildcard_index[wildcard_sequence_count] = &dst[0];
+      wildcard_sequence_start = true;
+    }
+    else{
+      if(wildcard_sequence_start){
+        wildcard_sequence_start = false;
+        wildcard_sequence_count++;
+        dst++;
+      }
+      const unsigned char high = hexdigit2int(*src++);
+      const unsigned char low  = hexdigit2int(*src++);
+      *dst = (high << 4) | low;
+      dst++;
+    }
+    char_count++;
+  }
+  *dst = '\0';
+  return text;
 }
 
 int main(){
@@ -74,8 +108,14 @@ int main(){
   
   fread(T, sizeof(unsigned char), st_size, Text);
   test_result = search(P, strlen(P), T, (int)st_size);
-  result_occ = search_s_p(P, strlen(P), T, (int)st_size, results);
-  printf("Result: %d", result_occ);
+  clock_t start;
+  double final_time;
+  uint8_t* wildcard_index[100];
+  P = decode_hex(P, wildcard_index);
+  start = startTimer();
+  result_occ = search_s_p(P, strlen(P), T, (int)st_size, wildcard_index);
+  final_time = endTimer(start);
+  printf("Result: %d | %f", result_occ, final_time);
 
-  return result;
+  return 0;
 }
