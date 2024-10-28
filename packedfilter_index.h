@@ -136,27 +136,40 @@ static unsigned char hexdigit2int(unsigned char xd)
   return 0;
 }
 
-void quick_pass (unsigned char* query_array,
+int** quick_pass (unsigned char* query_array,
             int query_len,
             unsigned char* text,
-            int text_len,
-            int** hex_index) {
+            int text_len) {
 
     //Setup
     int hex_idx_size = 0;
     int hex_idx_used = 0;
-    int* index_buf[256];
-    int** hex_tmp = NULL;
-    int* buf = (int*)malloc(sizeof(int));
-    int* tmp = (int*)malloc(sizeof(int));
+    int** index_buf = malloc(sizeof(int*)*256);
 
     union Window text_window;
     
     for(int i=0; i<256; i++){
-        int buf_size = 1;
-        int buf_used = 1;
+        int* buf = NULL;
+        int* tmp = NULL;
+        int buf_size = 0;
+        int buf_used = 0;
         int text_offset = 0;
         unsigned char* char_ptr = &query_array[i];
+
+        if(buf_used == buf_size){
+            buf_size += 1;             
+            tmp = realloc(buf, buf_size*sizeof(int));
+            if (!tmp){
+                free(tmp);
+                printf("oops");
+            }
+            else{
+                buf = tmp;
+            }
+            buf[buf_used] = 0;
+            buf_used++;
+        }
+
         
         text_window.c = &text[0];
 
@@ -186,7 +199,8 @@ void quick_pass (unsigned char* query_array,
                     }
                 }
                 buf[buf_used] = text_offset;
-                ++buf_used;
+                //printf("Text offset for hex %d | %d\n", i, buf[buf_used]);
+                buf_used++;
             }
             //No match found in window: move window and reset
             text_offset += 8;
@@ -203,6 +217,10 @@ void quick_pass (unsigned char* query_array,
         else{
             buf = tmp;
         }
+/*         printf("Buf_used: %d for hex: %d\n", buf_used, i);
+        for(int l=1; l< buf_used;l++){
+            printf("Text offset for hex %d | %d\n", i, buf[l]);
+        } */
         //store address of first bucket in buf in hex_index at `hex_idx_completed`
         
 
@@ -217,9 +235,10 @@ void quick_pass (unsigned char* query_array,
             }
         } */
         //index_buf[hex_idx_used] = (int*)malloc(buf[0] * sizeof(int));
-        index_buf[i] = (int*)malloc(sizeof(int)* buf[0]);
-        hex_index[i] = (int*)malloc(sizeof(int)* buf[0]);
-        memcpy(index_buf[i],buf, sizeof(buf));
+        int size = buf[0];
+        index_buf[i] = (int*)malloc(sizeof(int)* size);
+        //hex_index[i] = (int*)malloc(sizeof(int)* size);
+        memcpy(index_buf[i],buf, sizeof(int)*size);
         //index_buf[hex_idx_used] = &buf[0];
 /*         int** visual = hex_index;
         int* visual2 = visual[hex_idx_used];
@@ -232,6 +251,7 @@ void quick_pass (unsigned char* query_array,
         } */
         char_ptr++;
         hex_idx_used++;
+        free(buf);
     }
 
 /*     hex_tmp = realloc(hex_index, hex_idx_used*sizeof(int*));
@@ -241,10 +261,21 @@ void quick_pass (unsigned char* query_array,
     else{
         hex_index = hex_tmp;
     }    */ 
-    free(hex_tmp);
-    free(tmp);
     //*hex_index = (int**)malloc(sizeof(index_buf));
     //memcpy(&hex_index, &index_buf, sizeof(index_buf));
     //Return False if the text is searched and nothing is found.
-    memcpy(hex_index,index_buf,sizeof(index_buf));
+    //memcpy(hex_index,index_buf,sizeof(index_buf));
+/*     int test = 0;
+    for(int i=0; i<10; i++){
+        printf("Index count for Hex: %d | %d\n", i, *index_buf[i]);
+        for(int j=1; j<index_buf[i][0]; j++){
+        printf("Offset: %d | %d\n", i, index_buf[i][j]);
+        }
+    } */
+    //memcpy(hex_index, index_buf, sizeof(index_buf));
+    //hex_index = index_buf;
+    //free(index_buf);
+    return index_buf;
+    
+
 }

@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <fileapi.h>
 #include <io.h>
-//#include "smart_s_p.h"
-#include "packedfilter_index.h"
-//#include "stable_packedfilter.h"
+//#include "packedfilter_index.h"
+#include "search_index.h"
 
 
 int remove_spaces(char* s) {
@@ -111,8 +110,8 @@ unsigned char* generate_all_hex(){
 }
 
 int main(){
-  int* result_occ = 0;
-  int* hex_index[256];
+  int result_occ = 0;
+
   int test_result = 0;
   PLARGE_INTEGER T_size = (PLARGE_INTEGER) malloc(sizeof(PLARGE_INTEGER));
   char* text_path = "E:\\Documents\\Code\\Python\\byte_search\\NMS.bin";
@@ -139,16 +138,31 @@ int main(){
   uint8_t* wildcard_index[100];
   P = decode_hex(P, wildcard_index);
   unsigned char* all_hex = generate_all_hex();
+  
+  //int** hex_index = malloc(sizeof(int*)*256);
   start = startTimer();
-  //result_occ = search_s_p(P, strlen(P), T, (int)st_size, wildcard_index);
-  quick_pass(all_hex, strlen(all_hex), T, (int)st_size, hex_index);
+  int** hex_index = quick_pass(all_hex, strlen(all_hex), T, (int)st_size);
   final_time = endTimer(start);
-  printf("Result: %d | %f\n", result_occ, final_time);
-  int test = 0;
+  printf("Time to index: %f\n", final_time);
   for(int i=0; i<256; i++){
-    //printf("Index count for Hex: %d | %d\n", i, hex_index[i][0]);
-    test = *hex_index[i];
+    printf("Index count for Hex: %d | %d\n", i, *hex_index[i]);
+  } 
+
+/*   int test = 0;
+  for(int i=0; i<10; i++){
+    printf("Index count for Hex: %d | %d\n", i, *hex_index[i]);
+    for(int j=1; j<50; j++){
+      printf("Offset: %d | %d\n", i, hex_index[i][j]);
+    }
+  } */
+
+  start = startTimer();
+  for(int n=0; n<1;n++){
+    result_occ = search_index(P, strlen(all_hex), T, (int)st_size, wildcard_index, hex_index);
   }
+  final_time = endTimer(start);
+
+  printf("Result: %d | %f\n", result_occ, final_time);
 
 /*   struct my_struct *s, *i;
   unsigned char* uhex_str = "3F";
