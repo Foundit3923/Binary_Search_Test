@@ -10,6 +10,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <math.h>
+#include <time.h>
 
 
 #define LAST_BITS_ON 0x101010101010101UL
@@ -52,12 +53,23 @@ union Test {
     uint64_t i;
 };
 
-int* quick_pass (unsigned char* query_array,
+clock_t startTimer(){
+  double start, end, cpu_time_used;
+  return clock();
+}
+
+double endTimer(clock_t startTime){
+  clock_t endTime = clock();
+  return ((double) (endTime - startTime)) / CLOCKS_PER_SEC;
+}
+
+int quick_pass (unsigned char* query_array,
             int query_len,
             unsigned char* text,
             int text_len) {
 
     //Setup
+    int result = 0;
     int buf_size = 0;
     int buf_used = 0;
     int* buf = (int*)malloc(sizeof(int));
@@ -88,8 +100,8 @@ int* quick_pass (unsigned char* query_array,
 
         if((bool)(query_matches)) {
             if (&char_ptr[0] == last_char) {
-                //count(query_matches);
-                if(buf_used == buf_size){
+                count(query_matches);
+                /* if(buf_used == buf_size){
                     buf_size += 20;
                     tmp = realloc(buf, buf_size*sizeof(int));
                     if (!tmp){
@@ -101,7 +113,7 @@ int* quick_pass (unsigned char* query_array,
                     }
                 }
                 buf[buf_used] = text_offset;
-                ++buf_used;
+                ++buf_used; */
                 char_ptr = first_char;
                 text_offset += query_len;
                 text_window.c = &text[text_offset];
@@ -120,7 +132,7 @@ int* quick_pass (unsigned char* query_array,
         }
     }
     //Return False if the text is searched and nothing is found.
-    return buf;
+    return result;
 
 }
 

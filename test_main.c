@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <fileapi.h>
 #include <io.h>
-#include "smart_s_p.h"
-#include <time.h>
+//#include "smart_s_p.h"
+#include "packedfilter_index.h"
+//#include "stable_packedfilter.h"
+
 
 int remove_spaces(char* s) {
     char* d = s;
@@ -18,16 +20,26 @@ int remove_spaces(char* s) {
     return space_count;
 }
 
+/* static unsigned char hexdigit2int(unsigned char xd)
+{
+  if (xd <= '9')
+    return xd - '0';
+  xd = tolower(xd);
+  if (xd == 'a')
+    return 10;
+  if (xd == 'b')
+    return 11;
+  if (xd == 'c')
+    return 12;
+  if (xd == 'd')
+    return 13;
+  if (xd == 'e')
+    return 14;
+  if (xd == 'f')
+    return 15;
+  return 0;
+} */
 
-clock_t startTimer(){
-  double start, end, cpu_time_used;
-  return clock();
-}
-
-double endTimer(clock_t startTime){
-  clock_t endTime = clock();
-  return ((double) (endTime - startTime)) / CLOCKS_PER_SEC;
-}
 
 void getFile(FILE* f, char* path){
   f = fopen(path, "rb");
@@ -85,8 +97,22 @@ unsigned char* decode_hex(unsigned char* st, uint8_t* wildcard_index[100]){
   return text;
 }
 
+unsigned char* generate_all_hex(){
+  char hex_num[10] = "0123456789";
+  char hex_char[6] = "ABCDEF";
+  unsigned char* all_hex = (unsigned char*)malloc(sizeof(unsigned char)*512);
+  unsigned char* dst = all_hex;
+  unsigned char* init = 0;
+
+  for(unsigned int i=0; i<256; i++){
+    *dst++ = i;
+  }
+  return all_hex;
+}
+
 int main(){
-  int result_occ = 0;
+  int* result_occ = 0;
+  int* hex_index[256];
   int test_result = 0;
   PLARGE_INTEGER T_size = (PLARGE_INTEGER) malloc(sizeof(PLARGE_INTEGER));
   char* text_path = "E:\\Documents\\Code\\Python\\byte_search\\NMS.bin";
@@ -105,17 +131,41 @@ int main(){
   GetFileSizeEx(text_handle, T_size);
   size_t st_size = (size_t) T_size->QuadPart;
   T = (unsigned char*) malloc(sizeof(unsigned char) * st_size);
-  
+
   fread(T, sizeof(unsigned char), st_size, Text);
   test_result = search(P, strlen(P), T, (int)st_size);
   clock_t start;
   double final_time;
   uint8_t* wildcard_index[100];
   P = decode_hex(P, wildcard_index);
+  unsigned char* all_hex = generate_all_hex();
   start = startTimer();
-  result_occ = search_s_p(P, strlen(P), T, (int)st_size, wildcard_index);
+  //result_occ = search_s_p(P, strlen(P), T, (int)st_size, wildcard_index);
+  quick_pass(all_hex, strlen(all_hex), T, (int)st_size, &hex_index);
   final_time = endTimer(start);
-  printf("Result: %d | %f", result_occ, final_time);
+  printf("Result: %d | %f\n", result_occ, final_time);
+  int test = 0;
+  for(int i=0; i<256; i++){
+    //printf("Index count for Hex: %d | %d\n", i, hex_index[i][0]);
+    test = *hex_index[i];
+  }
+
+/*   struct my_struct *s, *i;
+  unsigned char* uhex_str = "3F";
+  char* hex_str = "3F";
+  const unsigned char high = hexdigit2int(*uhex_str++);
+  const unsigned char low  = hexdigit2int(*uhex_str);
+  unsigned int* hex_id = (unsigned int*) malloc(sizeof(unsigned int) * 1);
+  *hex_id = (high << 4) | low;
+  add_hex(hex_str, *hex_id);
+  s = find_hex_int(*hex_id);
+  i = find_hex_str(hex_str);
+  int test = (int) s->id;
+  unsigned char* code = s->code;
+  int test2 = (int) i->id;
+  s->id = 24;
+  test = (int) s->id;
+  test2 = (int) i->id; */
 
   return 0;
 }

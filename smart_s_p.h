@@ -11,7 +11,8 @@
 #include <inttypes.h>
 #include <math.h>
 #include <ctype.h>
-#include "stable_packedfilter.h"
+#include "packedfilter_index.h"
+
 
 
 #define LAST_BITS_ON 0x101010101010101UL
@@ -133,8 +134,11 @@ int search_s_p (unsigned char* query_array,
   uint8_t* match_start;
   uint8_t* jump = wildcard_index[wildcard_count];
   //uint8_t* results[20];
-
+  clock_t start;
+  double final_time;
+  start = startTimer();
   int* locations = quick_pass(byte_ptr, 1, text, text_len);
+  final_time = endTimer(start);
   
   union B_window file_window;
   file_window.c = &text[0];
@@ -182,10 +186,10 @@ int search_s_p (unsigned char* query_array,
           wildcard_count = 0;
         } else {
           //Character match found: move to next char in text and query
-          if(&byte_ptr[0] == first_byte){
-            match_start = file_window.c;
+          //if(&byte_ptr[0] == first_byte){
+            //match_start = file_window.c;
             //first_offset = query_matches;
-          }
+          //}
           byte_ptr++;
           file_window.c++;
         }
