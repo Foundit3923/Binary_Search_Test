@@ -163,6 +163,11 @@ int main(){
   final_time = endTimer(start);
 
   printf("Result: %d | %f\n", result_occ, final_time);
+  free(T);
+  free(T_size);
+
+
+
 
 /*   struct my_struct *s, *i;
   unsigned char* uhex_str = "3F";
