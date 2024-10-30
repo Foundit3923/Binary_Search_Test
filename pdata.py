@@ -4,6 +4,7 @@ import struct
 nms_path = "NMS.exe"
 
 pdata = []
+reject = []
 
 with open(nms_path, 'rb') as f:
     data = f.read()
@@ -20,9 +21,18 @@ with open(nms_path, 'rb') as f:
         pdata.append((func_start, func_end, func_end - func_start))
 
 with open("functions.txt", "w") as f:
-    f.write("Start\tEnd\t\tSize\n")
+    f.write("Start,End,Size;\n")
     for func in pdata:
-        f.write(f"0x{func[0]:X}\t0x{func[1]:X}\t0x{func[2]:X}\n")
+        if func[0] % 8 == 0:
+            f.write(f"0x{func[0]:X},0x{func[1]:X},0x{func[2]:X},\n")
+        else:
+            reject.append(func)
+
+with open("rejects.txt", "w") as f:
+    f.write("Start,End,Size;\n")
+    for func in reject:
+        f.write(f"0x{func[0]:X},0x{func[1]:X},0x{func[2]:X},\n")
+
 
 # sizes = Counter([x[2] for x in pdata])
 # with open("function_size_frequency.txt", "w") as f:
