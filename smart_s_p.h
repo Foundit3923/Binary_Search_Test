@@ -137,7 +137,7 @@ int search_s_p (unsigned char* query_array,
   clock_t start;
   double final_time;
   start = startTimer();
-  int* locations = quick_pass(byte_ptr, 1, text, text_len);
+  int* locations = build_index(byte_ptr, 1, text, text_len);
   final_time = endTimer(start);
   
   union B_window file_window;

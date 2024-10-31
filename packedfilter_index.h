@@ -136,7 +136,7 @@ static unsigned char hexdigit2int(unsigned char xd)
   return 0;
 }
 
-int** quick_pass (unsigned char* query_array,
+int** build_index (unsigned char* query_array,
             int query_len,
             unsigned char* text,
             int text_len) {

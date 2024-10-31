@@ -300,13 +300,17 @@ int main(){
   GetFileSizeEx(text_handle, T_size);
   size_t st_size = (size_t) T_size->QuadPart;
   T = (unsigned char*) malloc(sizeof(unsigned char) * st_size);
-
   fread(T, sizeof(unsigned char), st_size, File);
   test_result = search(P, strlen(P), T, (int)st_size);
+
   clock_t start;
   double final_time;
+
+  //generate wildcard index. Needed for final search
   uint8_t* wildcard_index[100];
   P = decode_hex(P, wildcard_index);
+
+  //generate all hex vals. Needed to generate index
   unsigned char* all_hex = generate_all_hex();
 
   int line_count = 0;
@@ -346,7 +350,7 @@ int main(){
   strcat(index_filepath, index_filename);
   if(( Index = fopen(index_filepath, "r")) == NULL){
     if (errno = ENOENT){
-      hex_index = quick_pass(all_hex, strlen(all_hex), T, (int)st_size);
+      hex_index = build_index(all_hex, strlen(all_hex), T, (int)st_size);
       final_time = endTimer(start);
       printf("index built in %f seconds\n",final_time);
       //transform to json
