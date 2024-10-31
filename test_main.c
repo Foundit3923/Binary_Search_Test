@@ -154,38 +154,15 @@ int* readnfields(char* line, int size)
 
 void index_to_json(FILE* f, int** hex_index, char* filepath){
 
-
   char buf[200];
-  char key[200];
-  char* value = NULL;// = malloc(sizeof(char*));
-  char* watch = NULL;
-  char value_buf[200];
-  char* record;
-  char* job_start = "{ \n";
-  char* job_end = " }";
-  char* array_start = "[";
   char* array_end = "]";
-  char* ownership = ": ";
   char* delim = ", ";
-  char* tab1 = "\t";
-  char* tab2 = "\t\t";
   char* nl = "\n";
-
-  char* json = malloc(sizeof(char)*strlen(job_start));
-  char* tmp = NULL;
-  int json_size = 0;
-  int char_used = 0;
-  size_t new_len = 0;
-  int value_used = 0;
-  int value_size = 0;
 
   f = fopen(filepath, "a");
   if(f == NULL){
     printf("Error opening index");
   }
-  /* fprintf(f, "%s", array_end);
-  fprintf(f, "%s", delim);
-  fprintf(f, "%s", nl); */
   for(int i=0; i<256; i++){
     sprintf(buf, "%d", i);
     fprintf(f, "%s", buf);
@@ -200,30 +177,6 @@ void index_to_json(FILE* f, int** hex_index, char* filepath){
     fprintf(f, "%s", delim);
     fprintf(f, "%s", nl);
   }
-  /* for(int i=0; i<256; i++){
-    fprintf(f, "%s", tab1);
-    sprintf(buf, "%d", i);
-    fprintf(f, "%s", buf);
-    fprintf(f, "%s", ownership);
-    fprintf(f, "%s", array_start);
-    fprintf(f, "%s", tab2);
-    for(int j=0; j<hex_index[i][0]; j++){
-      if(j%100 == 0){
-        fprintf(f, "%s", nl);
-        fprintf(f, "%s", tab2);
-      }
-      sprintf(buf, "%d", hex_index[i][j]);
-      fprintf(f, "%s", buf);
-      fprintf(f, "%s", delim);      
-    }
-    fprintf(f, "%s", nl);
-    fprintf(f, "%s", tab1);
-    fprintf(f, "%s", array_end);
-    fprintf(f, "%s", delim);
-    fprintf(f, "%s", nl);
-  }
-  fprintf(f, "%s", nl);
-  fprintf(f, "%s", job_end); */
 }
 
 static void process_value(json_value* value, int depth)
@@ -387,7 +340,6 @@ int main(){
           buffer[hex][count] = atoi(getfield(tmp, 1));
           count++;
         }
-
     }
     free(tmp);
     final_time = endTimer(start);

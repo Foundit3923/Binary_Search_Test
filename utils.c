@@ -23,6 +23,7 @@ int** extractFuncRanges(char* filepath, int line_count){
       r_count++;
       free(tmp);
   }
+  free(func_ranges);
   return func_ranges;
 }
 
@@ -58,8 +59,7 @@ WILDCARDS* decode_hex(unsigned char* st, uint8_t* wildcard_index[100]){
   const char *src = st; 
   int text_len = strlen(st);
   unsigned char* text = (unsigned char*) malloc(sizeof(unsigned char) * text_len);
-  WILDCARDS* w;
-  WILDCARDS tmp = {text,wildcard_index};
+  WILDCARDS* tmp = {text,wildcard_index};
   unsigned char* dst = text;
   bool wildcard_sequence_start = false;
   int wildcard_sequence_count = 0;
@@ -91,7 +91,7 @@ WILDCARDS* decode_hex(unsigned char* st, uint8_t* wildcard_index[100]){
     char_count++;
   }
   *dst = '\0';
-  return w;
+  return tmp;
 }
 
 void freeptr(void* ptr){
