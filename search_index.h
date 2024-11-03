@@ -53,6 +53,7 @@ int index_search (unsigned char* query_array,
 
   int byte_index_size = file_index[(int)*first_byte][0];
   int* byte_index = file_index[(int)*first_byte];
+  int results[255];
 
   union B_window file_window;
   
@@ -82,8 +83,10 @@ int index_search (unsigned char* query_array,
                 jump = wildcard_index[++wildcard_count];
                 if(&byte_ptr[0] != last_byte){
                     //count(query_matches);
-                    //*(R + count) = match_start + first_offset;
-                    count++;
+                    if(count < 256){
+                        *(results + count) = match_start + first_offset;
+                        count++;
+                    }
                     break;
                 }
             }
@@ -102,15 +105,17 @@ int index_search (unsigned char* query_array,
             if((bool)(query_matches)) {
                 if (&byte_ptr[0] == last_byte) {
                     //count(query_matches);
-                    //*(R + count) = match_start + getBitOffset(first_offset);
-                    count++;
+                    if(count < 256){
+                        *(results + count) = match_start + getBitOffset(first_offset);
+                        count++;
+                    }
                     break;
                 } else {
                     //Character match found: move to next char in text and query
-                    /* if(&byte_ptr[0] == first_byte){
+                    if(&byte_ptr[0] == first_byte){
                         match_start = file_window.c;
                         first_offset = query_matches;
-                    } */
+                    }
                     byte_ptr++;
                     file_window.c++;
                 }
@@ -121,8 +126,7 @@ int index_search (unsigned char* query_array,
         }
     }
   }
-  //R = results;
-  return count;
+  return results;
 }
 
 

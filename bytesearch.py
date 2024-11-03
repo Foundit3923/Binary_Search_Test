@@ -10,6 +10,7 @@ build/load index
 index filtered in python
 search with index or filtered index """
 
+from typing import Optional
 import numpy as np
 import struct
 import codecs
@@ -80,6 +81,7 @@ def main():
   output_dir = op.join(dir_path, output_dir)
   so_file = op.join(dir_path, c_filename)
   c_utils = CDLL(so_file)  
+  result = None
 
   #specify argtypes for some reason
   """
@@ -103,19 +105,6 @@ def main():
   c_utils.build_index.argtypes = [POINTER(c_ubyte), c_int, POINTER(c_ubyte), c_int]
   c_utils.build_index.restype = POINTER(POINTER(c_int))
 
-
-  #Decode string to find and generate wildcard index
-  #TODO: load patterns from text file and run all
-  string_to_find = "4C 8B 51 18 4D 8B D8 48 8B 05 ?? ?? ?? ?? 4D 8D 42 18 49 39 40 08 75 1C 48 8B 05 ?? ?? ?? ?? 49 39 00 75 10 0F 10 02 4D 89 5A 28 45 88 4A 30 41 0F 11 00 C3 48 8D 0D ?? ?? ?? ?? E9 ?? ?? ?? ??"
-  hex_string = string_to_find.replace(" ", "")
-  patt_len = len(hex_string)
-
-  P = (c_ubyte * patt_len).from_buffer_copy(bytearray(hex_string.encode('utf-8')))
-  wildcard_index = POINTER(c_uint8)*100
-  decoded_wildcard = WILDCARDS.from_address(c_utils.decode_hex(P, wildcard_index))
-  P = decoded_wildcard.decoded_hex
-  wildcard_index = decoded_wildcard.wildcard_index
-
   #generate all hex sequences
   py_list = list(range(0,255))
   all_hex = (c_uint8  * len(py_list))(*py_list)
@@ -130,40 +119,20 @@ def main():
   index = POINTER(c_int)*255
   try:
     with open(op.join(output_dir, index_filename), 'r') as f:
-      """
-      hex_index = malloc(sizeof(int*)*256);
-      int** buffer = hex_index;
-      int* view;
-      char* tmp;
-      int hex;
-      int size;
-      int value;
-      int count = 0;
-      while (fgets(line, 15, Index))
-      {
-          tmp = strdup(line);
-          if(strcmp(getfield(tmp,1), "]") == 0){
-            count = 0;
-            fgets(line, 15, Index);
-            tmp = strdup(line);
-            hex = atoi(getfield(tmp, 1));
-            tmp = strdup(line);
-            size = atoi(getfield(tmp, 2));
-            buffer[hex] = malloc(sizeof(int)*size);
-            view = buffer[hex];
-            buffer[hex][count] = size;
-            count++;
-            fgets(line, 15, Index);
-  
-          }
-          else{
-            buffer[hex][count] = atoi(getfield(tmp, 1));
-            count++;
-          }
-      }"""
-      #TODO: Two options. This is adapted to python. Or a new format is adopted which would require filter.py to be rewritten
-      #rewriting would be cleaner, but also I don't want to
-       
+      size = 0
+      hex = 0
+      value = 0
+      count = 0
+      for line in f:
+         if line.startswith(']'):
+            info = f.next()
+            hex = info[0]
+            size = info[1]
+            index[hex] = POINTER(c_int) * size
+            index[hex][count] = size
+            count += 1
+         else:
+            index[hex][count] = int(line[0])      
   except:
     with open(op.join(output_dir, index_filename), 'a') as f:
        """build_index(
@@ -172,35 +141,16 @@ def main():
         unsigned char* text,
         int text_len)"""
        index = c_utils.build_index(all_hex, len(py_list), T, file_len)
+       array_end = ']'
+       delim = ', '
+       nl = '\n'
+       f.write(f'{array_end}{delim}{nl}')
+       for i in range(256):
+          f.write(f'{i}{delim}')
+          for l in range(index[i][0]):
+             f.write(f'{index[i][l]}{delim}{nl}')
+          f.write(f'{array_end}{delim}{nl}')
 
-       """
-       void index_to_json(FILE* f, int** hex_index, char* filepath){
-
-         char buf[200];
-         char* array_end = "]";
-         char* delim = ", ";
-         char* nl = "\n";
-       
-         f = fopen(filepath, "a");
-         if(f == NULL){
-           printf("Error opening index");
-         }
-         for(int i=0; i<256; i++){
-           sprintf(buf, "%d", i);
-           fprintf(f, "%s", buf);
-           fprintf(f, "%s", delim);
-           for(int j=0; j<hex_index[i][0]; j++){
-             sprintf(buf, "%d", hex_index[i][j]);
-             fprintf(f, "%s", buf);
-             fprintf(f, "%s", delim); 
-             fprintf(f, "%s", nl);
-           }
-           fprintf(f, "%s", array_end);
-           fprintf(f, "%s", delim);
-           fprintf(f, "%s", nl);
-         }
-       }"""
-       #TODO: adapt to python. If we have to make it and it can be reused, it needs to be stored.
 
 
   #check if pdata
@@ -213,8 +163,27 @@ def main():
        filtered_index[key] = list(filtered_index_dict[key]["size"]) + list(filtered_index_dict[key]["compliant"])
     index = cast(filtered_index, POINTER(c_int)*255)
   
-  #TODO: have index_search return something other than the count
-  result = c_utils.index_search(P, patt_len, T, file_len, wildcard_index, index)
+  #Decode string to find and generate wildcard index  
+  #string_to_find = "4C 8B 51 18 4D 8B D8 48 8B 05 ?? ?? ?? ?? 4D 8D 42 18 49 39 40 08 75 1C 48 8B 05 ?? ?? ?? ?? 49 39 00 75 10 0F 10 02 4D 89 5A 28 45 88 4A 30 41 0F 11 00 C3 48 8D 0D ?? ?? ?? ?? E9 ?? ?? ?? ??"
+  try:
+    with open(op.join(input_dir, patterns_filename), 'r') as pat_file:
+      pat_list = pat_file.split(",")
+      pat_count = 0
+      result = POINTER(POINTER(int)*255) * len(pat_list)
+      for pat in pat_list:
+        hex_string = pat.replace(" ", "")
+        patt_len = len(hex_string)
+        P = (c_ubyte * patt_len).from_buffer_copy(bytearray(hex_string.encode('utf-8')))
+        wildcard_index = POINTER(c_uint8)*100
+        decoded_wildcard = WILDCARDS.from_address(c_utils.decode_hex(P, wildcard_index))
+        P = decoded_wildcard.decoded_hex
+        wildcard_index = decoded_wildcard.wildcard_index
+        result[pat_count] = c_utils.index_search(P, patt_len, T, file_len, wildcard_index, index)
+        pat_count += 1
+  except Exception as e:
+     print(f'Error: {e}')
+     print(f'Unable to open {op.join(input_dir,patterns_filename)}')
+     
 
 
   #free pointers allocated in C
@@ -223,6 +192,7 @@ def main():
   c_utils.freeptr(byref(index))
   c_utils.freeptr(byref(filtered_index_dict))
   c_utils.freeptr(byref(decoded_wildcard))
-  print(result)
+  #print(result)
+  return result
 
 main()
