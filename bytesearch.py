@@ -91,17 +91,22 @@ def main():
   int text_len,
   uint8_t* wildcard_index[100],
   int* file_index[255]"""
-  c_utils.index_search.argtypes = [POINTER(c_ubyte), c_int, POINTER(c_ubyte), c_int, POINTER(c_uint8)*100, POINTER(c_int)*255]
+  c_utils.index_search.argtypes = [POINTER(c_ubyte), c_int, POINTER(c_ubyte), c_int, POINTER(POINTER(c_uint8))*100, POINTER(POINTER(c_int))*255]
   c_utils.index_search.restype = c_int
   """ 
   unsigned char* st, 
   uint8_t* wildcard_index[100] """
-  c_utils.decode_hex.argtypes = [POINTER(c_ubyte), POINTER(c_uint8)*100]
+  c_utils.decode_hex.argtypes = [POINTER(c_ubyte), POINTER(POINTER(c_uint8))*100]
   c_utils.decode_hex.restype = c_void_p
 
   c_utils.freeptr.argtypes = c_void_p
   c_utils.freeptr.restype = None
 
+  """
+  unsigned char* query_array,
+  int query_len,
+  unsigned char* text,
+  int text_len"""
   c_utils.build_index.argtypes = [POINTER(c_ubyte), c_int, POINTER(c_ubyte), c_int]
   c_utils.build_index.restype = POINTER(POINTER(c_int))
 
@@ -116,7 +121,7 @@ def main():
   T = (c_ubyte * file_len).from_buffer(bytearray(open(file_path, 'rb').read()))
 
   #generate index
-  index = POINTER(c_int)*255
+  index = POINTER(POINTER(c_int))*255
   try:
     with open(op.join(output_dir, index_filename), 'r') as f:
       size = 0
@@ -151,8 +156,6 @@ def main():
              f.write(f'{index[i][l]}{delim}{nl}')
           f.write(f'{array_end}{delim}{nl}')
 
-
-
   #check if pdata
   filtered_index_dict = {}
   filtered_index = []
@@ -161,7 +164,7 @@ def main():
     filtered_index_dict = filter_index_by_ranges(op.join(output_dir, index_filename), op.join(output_dir, function_filename), op.join(output_dir, filtered_index_filename))
     for key in filtered_index_dict:
        filtered_index[key] = list(filtered_index_dict[key]["size"]) + list(filtered_index_dict[key]["compliant"])
-    index = cast(filtered_index, POINTER(c_int)*255)
+    index = cast(filtered_index, POINTER(POINTER(c_int))*255)
   
   #Decode string to find and generate wildcard index  
   #string_to_find = "4C 8B 51 18 4D 8B D8 48 8B 05 ?? ?? ?? ?? 4D 8D 42 18 49 39 40 08 75 1C 48 8B 05 ?? ?? ?? ?? 49 39 00 75 10 0F 10 02 4D 89 5A 28 45 88 4A 30 41 0F 11 00 C3 48 8D 0D ?? ?? ?? ?? E9 ?? ?? ?? ??"
