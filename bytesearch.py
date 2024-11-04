@@ -10,20 +10,19 @@ build/load index
 index filtered in python
 search with index or filtered index """
 
-from typing import Optional
-import numpy as np
+
 import struct
-import codecs
 import os
 import os.path as op
 from ctypes import *
-from collections import Counter
 from filter import filter_index_by_ranges
+
 
 class WILDCARDS(Structure):
     _fields_ = [('decoded_hex', POINTER(c_ubyte)),
                 ('wildcard_index', POINTER(c_uint8)*100)]
     
+
 def get_pdata(path, function_filename, reject_filename):
   pdata = []
   reject = []
@@ -62,8 +61,6 @@ def get_pdata(path, function_filename, reject_filename):
   except IOError as e:
       return 0
 
-def c_array_to_list():
-   pass
 
 def main():
   #load in C functions
@@ -83,6 +80,7 @@ def main():
   c_utils = CDLL(so_file)  
   result = None
 
+
   #specify argtypes for some reason
   """
   unsigned char* query_array,
@@ -93,14 +91,18 @@ def main():
   int* file_index[255]"""
   c_utils.index_search.argtypes = [POINTER(c_ubyte), c_int, POINTER(c_ubyte), c_int, POINTER(POINTER(c_uint8))*100, POINTER(POINTER(c_int))*255]
   c_utils.index_search.restype = c_int
+
+
   """ 
   unsigned char* st, 
   uint8_t* wildcard_index[100] """
   c_utils.decode_hex.argtypes = [POINTER(c_ubyte), POINTER(POINTER(c_uint8))*100]
   c_utils.decode_hex.restype = c_void_p
 
+
   c_utils.freeptr.argtypes = c_void_p
   c_utils.freeptr.restype = None
+
 
   """
   unsigned char* query_array,
@@ -110,15 +112,18 @@ def main():
   c_utils.build_index.argtypes = [POINTER(c_ubyte), c_int, POINTER(c_ubyte), c_int]
   c_utils.build_index.restype = POINTER(POINTER(c_int))
 
+
   #generate all hex sequences
   py_list = list(range(0,255))
   all_hex = (c_uint8  * len(py_list))(*py_list)
+
 
   #Load file to search and convert to ctype unsigned char*
   file_path = op.join(input_dir,to_search_filename)
   file_len = os.path.getsize(file_path)
   T = POINTER(c_ubyte * file_len)
   T = (c_ubyte * file_len).from_buffer(bytearray(open(file_path, 'rb').read()))
+
 
   #generate index
   index = POINTER(POINTER(c_int))*255
@@ -156,6 +161,7 @@ def main():
              f.write(f'{index[i][l]}{delim}{nl}')
           f.write(f'{array_end}{delim}{nl}')
 
+
   #check if pdata
   filtered_index_dict = {}
   filtered_index = []
@@ -166,13 +172,14 @@ def main():
        filtered_index[key] = list(filtered_index_dict[key]["size"]) + list(filtered_index_dict[key]["compliant"])
     index = cast(filtered_index, POINTER(POINTER(c_int))*255)
   
+
   #Decode string to find and generate wildcard index  
   #string_to_find = "4C 8B 51 18 4D 8B D8 48 8B 05 ?? ?? ?? ?? 4D 8D 42 18 49 39 40 08 75 1C 48 8B 05 ?? ?? ?? ?? 49 39 00 75 10 0F 10 02 4D 89 5A 28 45 88 4A 30 41 0F 11 00 C3 48 8D 0D ?? ?? ?? ?? E9 ?? ?? ?? ??"
   try:
     with open(op.join(input_dir, patterns_filename), 'r') as pat_file:
-      pat_list = pat_file.split(",")
-      pat_count = 0
+      pat_list = pat_file.split(",")      
       result = POINTER(POINTER(int)*255) * len(pat_list)
+      pat_count = 0
       for pat in pat_list:
         hex_string = pat.replace(" ", "")
         patt_len = len(hex_string)
@@ -186,7 +193,6 @@ def main():
   except Exception as e:
      print(f'Error: {e}')
      print(f'Unable to open {op.join(input_dir,patterns_filename)}')
-     
 
 
   #free pointers allocated in C
@@ -195,7 +201,9 @@ def main():
   c_utils.freeptr(byref(index))
   c_utils.freeptr(byref(filtered_index_dict))
   c_utils.freeptr(byref(decoded_wildcard))
-  #print(result)
+
+
   return result
+
 
 main()
